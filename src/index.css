@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+}
+
+/* Custom romantic glowing effects & subtle animations */
+.text-glow {
+  text-shadow: 0 0 20px rgba(224, 83, 119, 0.4), 0 0 40px rgba(212, 175, 55, 0.2);
+}
+
+.gold-shimmer {
+  background: linear-gradient(135deg, #F5EFE6 0%, #D4AF37 50%, #FAF7F2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.rose-gold-gradient {
+  background: linear-gradient(135deg, #F4B0BE 0%, #E05377 50%, #D4AF37 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #141210;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #443730;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A92449;
+}
