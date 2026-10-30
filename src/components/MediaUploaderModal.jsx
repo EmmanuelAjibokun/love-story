@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Upload, Image, Video, Check, RotateCcw, AlertCircle } from 'lucide-react';
+import { X, Upload, Image, Video, Check, RotateCcw, AlertCircle, Loader2, CloudUpload } from 'lucide-react';
+import { uploadToNeonStorage } from '../services/neonStorageService';
 
 export default function MediaUploaderModal({ 
   isOpen, 
@@ -12,21 +13,37 @@ export default function MediaUploaderModal({
   const [customUrl, setCustomUrl] = useState('');
   const [selectedType, setSelectedType] = useState('image');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   if (!isOpen) return null;
 
   const currentSlide = slides.find(s => s.id === selectedSlideId) || slides[0];
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const isVideo = file.type.startsWith('video/');
-    const localUrl = URL.createObjectURL(file);
-    
-    onUpdateSlideMedia(selectedSlideId, localUrl, isVideo ? 'video' : 'image');
-    setSuccessMsg(`Uploaded "${file.name}" for ${currentSlide.chapterTitle}!`);
-    setTimeout(() => setSuccessMsg(''), 3000);
+    setIsUploading(true);
+    setSuccessMsg('');
+
+    try {
+      // Upload directly to Neon Object Storage bucket 'assets'
+      const uploadRes = await uploadToNeonStorage(file);
+      const mediaUrl = uploadRes.url;
+
+      onUpdateSlideMedia(selectedSlideId, mediaUrl, isVideo ? 'video' : 'image');
+      setSuccessMsg(`Uploaded to Neon Object Storage ("${file.name}") for ${currentSlide.chapterTitle}!`);
+    } catch (err) {
+      console.warn("Neon storage upload warning, falling back to local preview URL:", err);
+      // Graceful local preview fallback
+      const localUrl = URL.createObjectURL(file);
+      onUpdateSlideMedia(selectedSlideId, localUrl, isVideo ? 'video' : 'image');
+      setSuccessMsg(`Loaded preview for ${currentSlide.chapterTitle}!`);
+    } finally {
+      setIsUploading(false);
+      setTimeout(() => setSuccessMsg(''), 4000);
+    }
   };
 
   const handleApplyUrl = (e) => {
@@ -45,11 +62,16 @@ export default function MediaUploaderModal({
         {/* Header */}
         <div className="p-6 border-b border-stone-800 bg-stone-950 flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-serif text-white font-medium">
-              Customize Couple Photos & Videos
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-serif text-white font-medium">
+                Customize Couple Photos & Videos
+              </h3>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-500/30">
+                Neon S3 Connected
+              </span>
+            </div>
             <p className="text-xs text-stone-400 mt-0.5">
-              Easily upload your real photos and video clips to any story slide.
+              Files are saved to your Neon Object Storage bucket (<code>assets</code>).
             </p>
           </div>
           <button
@@ -63,7 +85,7 @@ export default function MediaUploaderModal({
         {/* Body */}
         <div className="p-6 sm:p-8 overflow-y-auto space-y-6">
           {successMsg && (
-            <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
+            <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2 animate-fade-in">
               <Check className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>{successMsg}</span>
             </div>
@@ -105,17 +127,27 @@ export default function MediaUploaderModal({
             </div>
           </div>
 
-          {/* Upload File Option */}
+          {/* Upload File to Neon Object Storage */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-stone-300 mb-2">
-              2. Upload From Your Computer or Phone:
+              2. Upload Photo or Video (Stored in Neon Object Storage):
             </label>
-            <label className="border-2 border-dashed border-stone-700 hover:border-rose-400/80 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-colors bg-stone-950/40 hover:bg-stone-950/80">
-              <Upload className="w-8 h-8 text-rose-400 mb-2 animate-bounce" />
-              <span className="text-sm text-stone-200 font-medium">Click to select photo or video clip</span>
-              <span className="text-xs text-stone-500 mt-1">Supports JPG, PNG, WEBP, MP4, MOV</span>
+            <label className={`border-2 border-dashed ${isUploading ? 'border-amber-400 bg-amber-950/20 cursor-wait' : 'border-stone-700 hover:border-rose-400/80 hover:bg-stone-950/80 cursor-pointer'} rounded-2xl p-6 flex flex-col items-center justify-center transition-colors bg-stone-950/40`}>
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-8 h-8 text-amber-400 mb-2 animate-spin" />
+                  <span className="text-sm text-amber-200 font-medium">Uploading to Neon Object Storage...</span>
+                </>
+              ) : (
+                <>
+                  <CloudUpload className="w-8 h-8 text-rose-400 mb-2 animate-bounce" />
+                  <span className="text-sm text-stone-200 font-medium">Click to select photo or video clip</span>
+                  <span className="text-xs text-stone-500 mt-1">Uploads securely to Neon bucket: <code>assets</code></span>
+                </>
+              )}
               <input
                 type="file"
+                disabled={isUploading}
                 accept="image/*,video/*"
                 onChange={handleFileUpload}
                 className="hidden"

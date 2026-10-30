@@ -4,6 +4,31 @@ A landing page and interactive storybook built with **React**, **Vite**, and **T
 
 ---
 
+## 🐘 Neon Serverless Database Integration
+
+The Guest Blessings & Prayers section is wired to **Neon Serverless Postgres** via `@neondatabase/serverless` over HTTP:
+
+1. **Automatic Table Creation**: Automatically creates `wedding_wishes` if it doesn't exist yet:
+   ```sql
+   CREATE TABLE IF NOT EXISTS wedding_wishes (
+     id SERIAL PRIMARY KEY,
+     guest_name VARCHAR(150) NOT NULL,
+     message TEXT NOT NULL,
+     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+   );
+   ```
+2. **Environment Variable**: Set your Neon connection string in `.env.local` or `.env`:
+   ```env
+   VITE_NEON_DATABASE_URL="postgresql://[user]:[password]@[endpoint].neon.tech/neondb?sslmode=require"
+   ```
+3. **Features**:
+   - Live real-time fetch from Neon with shimmer loading skeleton.
+   - Optimistic UI updates on submission with double-submit protection (`Saving to Neon...`).
+   - "Refresh" button to sync latest prayers across guests.
+   - Graceful fallback with local backup if the database is temporarily unreachable.
+
+---
+
 ## ✨ Features Included
 
 1. **Auto-Playing Media Slider with Images & Short Video Clips**:
@@ -31,49 +56,21 @@ A landing page and interactive storybook built with **React**, **Vite**, and **T
    - Numbers 23:20 scripture citation.
    - One-click copy for the official wedding hashtag (`#TitiSeyiForever`).
    - Interactive heart confetti celebration shower.
-   - Virtual guestbook / prayer wall where friends and family can leave blessings.
-
-6. **Custom Media Uploader**:
-   - Click "Custom Media" in the slider or navbar to upload real couple photos and video clips directly from phone/laptop or paste image URLs!
 
 ---
 
 ## 🚀 How to Run Locally
 
 ```bash
-# 1. Install dependencies (already completed)
+# 1. Install dependencies
 npm install
 
-# 2. Start the local development server
+# 2. Add your Neon Database URL to .env.local (Optional, fallback provided)
+cp .env.example .env.local
+
+# 3. Start the local development server
 npm run dev
 
-# 3. Build for production deployment
+# 4. Build for production deployment
 npm run build
-```
-
----
-
-## 🎨 Project Structure
-
-```
-├── src/
-│   ├── components/
-│   │   ├── AudioPlayerPrompt.jsx   # Sound permission modal & floating music widget
-│   │   ├── StorySlider.jsx          # Auto-playing image & video carousel with subtitles
-│   │   ├── LoveStoryTimeline.jsx    # Interactive milestone roadmap
-│   │   ├── WeddingDetails.jsx       # Countdown, Numbers 23:20, and guest blessings wall
-│   │   ├── FullTranscriptModal.jsx  # Complete script reader modal
-│   │   ├── MediaUploaderModal.jsx   # Tool to swap in real couple photos & clips
-│   │   ├── Navbar.jsx               # Header with monogram & quick links
-│   │   └── Footer.jsx               # Wedding footer & hashtag
-│   ├── data/
-│   │   └── storyScript.js           # 15 chronological slides, subtitles & milestone data
-│   ├── utils/
-│   │   └── audioEngine.js           # Audio playback & procedural romantic synth
-│   ├── App.jsx                      # Main landing page assembly
-│   ├── index.css                    # Tailwind & custom typography/glowing effects
-│   └── main.jsx
-├── index.html                       # Google Fonts (Cormorant Garamond, Great Vibes, Plus Jakarta)
-├── tailwind.config.js
-└── package.json
 ```
