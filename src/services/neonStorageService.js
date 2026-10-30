@@ -1,9 +1,10 @@
 /**
  * Neon Object Storage Service
- * Handles uploading wedding photos and video clips to the Neon Object Storage 'assets' bucket.
+ * Handles uploading wedding photos and video clips to the Neon Object Storage 'assets' bucket
+ * and associating them with story slides in Neon Postgres.
  */
 
-export async function uploadToNeonStorage(file) {
+export async function uploadToNeonStorage(file, slideId = null) {
   // Convert file to base64
   const base64Data = await new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -21,6 +22,7 @@ export async function uploadToNeonStorage(file) {
       fileName: file.name,
       fileType: file.type,
       dataBase64: base64Data,
+      slideId: slideId ? Number(slideId) : null,
     }),
   });
 
@@ -30,7 +32,7 @@ export async function uploadToNeonStorage(file) {
   }
 
   const result = await response.json();
-  return result; // contains { success, key, url, bucket }
+  return result; // contains { success, key, url, bucket, slideId }
 }
 
 export async function listNeonStorageFiles() {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import AudioPlayerPrompt from './components/AudioPlayerPrompt';
@@ -8,7 +8,8 @@ import WeddingDetails from './components/WeddingDetails';
 import FullTranscriptModal from './components/FullTranscriptModal';
 import MediaUploaderModal from './components/MediaUploaderModal';
 import { STORY_SLIDES, COUPLE_INFO } from './data/storyScript';
-import { Sparkles, Heart, BookOpen, Volume2, Calendar, MapPin } from 'lucide-react';
+import { fetchSlidesFromNeon, updateSlideMediaInNeon, resetAllSlidesInNeon } from './services/neonSlidesService';
+import { Sparkles, Heart, BookOpen, Volume2, Calendar, MapPin, Database } from 'lucide-react';
 
 export default function App() {
   const [hasEntered, setHasEntered] = useState(false);
@@ -16,16 +17,58 @@ export default function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
+  const [uploaderSlideId, setUploaderSlideId] = useState(1);
+  const [isLoadingSlides, setIsLoadingSlides] = useState(true);
 
-  // Allow custom image / video replacement
-  const handleUpdateSlideMedia = (slideId, newUrl, type) => {
+  // Load slides from Neon database on mount
+  useEffect(() => {
+    async function loadNeonSlides() {
+      try {
+        const dbSlides = await fetchSlidesFromNeon();
+        if (dbSlides && dbSlides.length > 0) {
+          setSlides(dbSlides);
+        }
+      } catch (err) {
+        console.warn("Using default slides:", err);
+      } finally {
+        setIsLoadingSlides(false);
+      }
+    }
+    loadNeonSlides();
+  }, []);
+
+  // Update slide media in React state & Neon Postgres database
+  const handleUpdateSlideMedia = async (slideId, newUrl, type) => {
+    // 1. Optimistic local update
     setSlides(prev =>
-      prev.map(s => (s.id === slideId ? { ...s, mediaUrl: newUrl, type } : s))
+      prev.map(s => (s.id === slideId ? { ...s, mediaUrl: newUrl, type, isCustomMedia: true } : s))
     );
+
+    // 2. Persist to Neon Database
+    try {
+      const updated = await updateSlideMediaInNeon(slideId, newUrl, type);
+      if (updated) {
+        setSlides(prev =>
+          prev.map(s => (s.id === slideId ? { ...s, ...updated } : s))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to persist slide update to Neon:", err);
+    }
   };
 
-  const handleResetDefaults = () => {
-    setSlides(STORY_SLIDES);
+  const handleResetDefaults = async () => {
+    try {
+      const resetList = await resetAllSlidesInNeon();
+      setSlides(resetList);
+    } catch (err) {
+      setSlides(STORY_SLIDES);
+    }
+  };
+
+  const handleOpenUploaderForSlide = (slideId) => {
+    setUploaderSlideId(slideId || slides[currentIndex]?.id || 1);
+    setIsUploaderOpen(true);
   };
 
   return (
@@ -36,7 +79,7 @@ export default function App() {
       {/* Navigation Header */}
       <Navbar 
         onOpenTranscript={() => setIsTranscriptOpen(true)}
-        onOpenUploader={() => setIsUploaderOpen(true)}
+        onOpenUploader={() => handleOpenUploaderForSlide(slides[currentIndex]?.id)}
       />
 
       {/* Main Landing Page Content */}
@@ -66,7 +109,7 @@ export default function App() {
 
             <p className="text-stone-300 text-sm sm:text-base max-w-2xl font-light leading-relaxed mb-6">
               "She entered my DM as my church cell group leader... and walked straight into my heart.
-              From late-night talks at FUTA to the 2019 saved 'YES' GIF, explore our 5-year journey to forever."
+              From late-night talks at FUTA to her saying 'YES', explore our 5-year journey to forever."
             </p>
 
             {/* Quick Badges */}
@@ -94,7 +137,7 @@ export default function App() {
             currentIndex={currentIndex}
             setCurrentIndex={setCurrentIndex}
             onOpenTranscript={() => setIsTranscriptOpen(true)}
-            onOpenUploader={() => setIsUploaderOpen(true)}
+            onOpenUploader={handleOpenUploaderForSlide}
           />
         </section>
 
@@ -116,11 +159,12 @@ export default function App() {
         onClose={() => setIsTranscriptOpen(false)}
       />
 
-      {/* Media Uploader Modal for real couple photos/videos */}
+      {/* Media Uploader Modal for real couple photos/videos in Neon S3 & DB */}
       <MediaUploaderModal
         isOpen={isUploaderOpen}
         onClose={() => setIsUploaderOpen(false)}
         slides={slides}
+        initialSlideId={uploaderSlideId}
         onUpdateSlideMedia={handleUpdateSlideMedia}
         onResetDefaults={handleResetDefaults}
       />

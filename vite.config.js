@@ -24,7 +24,7 @@ function neonApiPlugin(env) {
   return {
     name: 'neon-api-plugin',
     configureServer(server) {
-      // 1. POST /api/storage/upload - Upload photos/videos to Neon Object Storage
+      // 1. POST /api/storage/upload - Upload photos/videos to Neon Object Storage bucket
       server.middlewares.use('/api/storage/upload', (req, res) => {
         if (req.method !== 'POST') {
           res.statusCode = 405;
@@ -36,7 +36,7 @@ function neonApiPlugin(env) {
         req.on('end', async () => {
           try {
             const body = JSON.parse(Buffer.concat(chunks).toString());
-            const { fileName, fileType, dataBase64 } = body;
+            const { fileName, fileType, dataBase64, slideId } = body;
 
             if (!fileName || !dataBase64) {
               res.statusCode = 400;
@@ -44,7 +44,8 @@ function neonApiPlugin(env) {
             }
 
             const buffer = Buffer.from(dataBase64.replace(/^data:.*?;base64,/, ''), 'base64');
-            const fileKey = `uploads/${Date.now()}-${fileName.replace(/\s+/g, '_')}`;
+            const cleanName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const fileKey = `story-slides/slide-${slideId || 'custom'}-${Date.now()}-${cleanName}`;
 
             await s3.send(new PutObjectCommand({
               Bucket: bucketName,
@@ -53,19 +54,34 @@ function neonApiPlugin(env) {
               ContentType: fileType || 'image/jpeg',
             }));
 
-            // Generate presigned URL for secure access
+            // Generate presigned URL for long-term secure access (7 days)
             const getCmd = new GetObjectCommand({
               Bucket: bucketName,
               Key: fileKey,
             });
-            const accessUrl = await getSignedUrl(s3, getCmd, { expiresIn: 604800 }); // 7 days
+            const accessUrl = await getSignedUrl(s3, getCmd, { expiresIn: 604800 });
+
+            // If slideId was provided, automatically update the story_slides table in Neon Postgres!
+            if (slideId && sql) {
+              const isVideo = (fileType || '').startsWith('video/');
+              await sql`
+                UPDATE story_slides
+                SET 
+                  media_url = ${accessUrl},
+                  media_type = ${isVideo ? 'video' : 'image'},
+                  is_custom_media = TRUE,
+                  updated_at = CURRENT_TIMESTAMP
+                WHERE slide_id = ${Number(slideId)};
+              `;
+            }
 
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({
               success: true,
               key: fileKey,
               url: accessUrl,
-              bucket: bucketName
+              bucket: bucketName,
+              slideId
             }));
           } catch (err) {
             console.error('Neon storage upload error:', err);
@@ -112,7 +128,97 @@ function neonApiPlugin(env) {
         }
       });
 
-      // 3. /api/wishes - Neon Postgres Wishes API
+      // 3. /api/slides - Neon Postgres Story Slides API
+      server.middlewares.use('/api/slides', (req, res, next) => {
+        if (!sql) {
+          res.statusCode = 500;
+          return res.end(JSON.stringify({ error: 'Neon database not configured' }));
+        }
+
+        const url = req.url || '';
+
+        // GET /api/slides
+        if (req.method === 'GET' && (url === '' || url === '/')) {
+          (async () => {
+            try {
+              const rows = await sql`
+                SELECT 
+                  slide_id AS id,
+                  chapter,
+                  chapter_title AS "chapterTitle",
+                  date_str AS date,
+                  location,
+                  media_type AS type,
+                  media_url AS "mediaUrl",
+                  fallback_media AS "fallbackMedia",
+                  aspect_ratio AS "aspectRatio",
+                  subtitle,
+                  reaction_emoji AS "reactionEmoji",
+                  tags,
+                  is_custom_media AS "isCustomMedia"
+                FROM story_slides
+                ORDER BY slide_id ASC;
+              `;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(rows));
+            } catch (err) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          })();
+          return;
+        }
+
+        // POST /api/slides/update-media
+        if (req.method === 'POST' && url.includes('/update-media')) {
+          const chunks = [];
+          req.on('data', chunk => chunks.push(chunk));
+          req.on('end', async () => {
+            try {
+              const body = JSON.parse(Buffer.concat(chunks).toString());
+              const { slideId, mediaUrl, mediaType } = body;
+              if (!slideId || !mediaUrl) {
+                res.statusCode = 400;
+                return res.end(JSON.stringify({ error: 'slideId and mediaUrl required' }));
+              }
+
+              const result = await sql`
+                UPDATE story_slides
+                SET 
+                  media_url = ${mediaUrl},
+                  media_type = ${mediaType || 'image'},
+                  is_custom_media = TRUE,
+                  updated_at = CURRENT_TIMESTAMP
+                WHERE slide_id = ${Number(slideId)}
+                RETURNING 
+                  slide_id AS id,
+                  chapter,
+                  chapter_title AS "chapterTitle",
+                  date_str AS date,
+                  location,
+                  media_type AS type,
+                  media_url AS "mediaUrl",
+                  fallback_media AS "fallbackMedia",
+                  aspect_ratio AS "aspectRatio",
+                  subtitle,
+                  reaction_emoji AS "reactionEmoji",
+                  tags,
+                  is_custom_media AS "isCustomMedia";
+              `;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(result[0]));
+            } catch (err) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          });
+          return;
+        }
+
+        next();
+      });
+
+      // 4. /api/wishes - Neon Postgres Wishes API
       server.middlewares.use('/api/wishes', (req, res) => {
         if (!sql) {
           res.statusCode = 500;

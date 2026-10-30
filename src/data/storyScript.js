@@ -158,7 +158,7 @@ export const STORY_SLIDES = [
   {
     id: 11,
     chapter: "Chapter 6",
-    chapterTitle: "The 2019 Saved 'YES' GIF",
+    chapterTitle: "The Moment We Started Dating",
     date: "October 25, 2023",
     location: "Her Reply",
     type: "video",
@@ -258,8 +258,8 @@ export const TIMELINE_MILESTONES = [
   },
   {
     date: "October 25, 2023",
-    title: "The Proposal & The 2019 Saved GIF",
-    description: "Popsicles, half-heart necklace in perfume scent, and her 2019 'YES' GIF response.",
+    title: "The Year We Started Dating",
+    description: "Popsicles, half-heart necklace in perfume scent, and her 2019 GIF response.",
     icon: "HeartHandshake",
     badge: "Official Dating"
   },

@@ -12,7 +12,10 @@ import {
   Heart,
   Volume2,
   VolumeX,
-  BookOpen
+  BookOpen,
+  Database,
+  CloudUpload,
+  Sparkles
 } from 'lucide-react';
 
 export default function StorySlider({ 
@@ -179,25 +182,41 @@ export default function StorySlider({
             <Heart className="w-3.5 h-3.5 fill-rose-400 text-rose-400 animate-pulse" />
             {currentSlide.chapter}
           </span>
+
           <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-black/50 border border-stone-700/60 text-stone-300 backdrop-blur-md flex items-center gap-1.5">
             <Calendar className="w-3 h-3 text-amber-300" />
             {currentSlide.date}
           </span>
+
           <span className="hidden md:flex px-3 py-1.5 rounded-full text-xs font-medium bg-black/50 border border-stone-700/60 text-stone-300 backdrop-blur-md items-center gap-1.5">
             <MapPin className="w-3 h-3 text-rose-300" />
             {currentSlide.location}
           </span>
+
+          {/* Database / S3 Storage Source Indicator */}
+          {currentSlide.isCustomMedia ? (
+            <span className="px-2.5 py-1.5 rounded-full text-xs font-medium bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 backdrop-blur-md flex items-center gap-1 shadow-sm">
+              <Database className="w-3 h-3 text-emerald-400" />
+              <span>Neon S3 Stored</span>
+            </span>
+          ) : (
+            <span className="hidden lg:flex px-2.5 py-1.5 rounded-full text-[11px] font-medium bg-black/40 border border-stone-800 text-stone-400 backdrop-blur-md items-center gap-1">
+              <Database className="w-3 h-3 text-amber-400/80" />
+              <span>Neon DB Synced</span>
+            </span>
+          )}
         </div>
 
         {/* Top Right Controls (Custom media / Fullscreen) */}
         <div className="absolute top-4 sm:top-6 right-4 sm:right-6 z-20 flex items-center gap-2">
           {onOpenUploader && (
             <button
-              onClick={onOpenUploader}
-              className="px-3 py-1.5 rounded-full text-xs font-medium bg-stone-900/80 hover:bg-stone-800 text-stone-200 border border-stone-700/80 backdrop-blur-md transition-all shadow-md flex items-center gap-1.5"
-              title="Replace or add your own couple photos and clips"
+              onClick={() => onOpenUploader(currentSlide.id)}
+              className="px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-rose-600/30 to-amber-600/30 hover:from-rose-600/50 hover:to-amber-600/50 text-white border border-rose-500/40 backdrop-blur-md transition-all shadow-md flex items-center gap-1.5 active:scale-95"
+              title="Upload your own photo or video to Neon Object Storage for this slide"
             >
-              <span>Custom Media</span>
+              <CloudUpload className="w-3.5 h-3.5 text-amber-300" />
+              <span>Upload for this Chapter</span>
             </button>
           )}
 
@@ -315,9 +334,9 @@ export default function StorySlider({
 
           {/* Dots Indicator */}
           <div className="hidden sm:flex items-center gap-1.5 max-w-md overflow-x-auto py-1">
-            {slides.map((_, i) => (
+            {slides.map((s, i) => (
               <button
-                key={i}
+                key={s.id || i}
                 onClick={() => {
                   setCurrentIndex(i);
                   setProgress(0);
@@ -326,8 +345,11 @@ export default function StorySlider({
                 className={`transition-all duration-300 rounded-full ${
                   i === currentIndex
                     ? 'w-6 h-2 bg-gradient-to-r from-rose-400 to-amber-400'
+                    : s.isCustomMedia
+                    ? 'w-2 h-2 bg-emerald-400 hover:bg-emerald-300'
                     : 'w-2 h-2 bg-stone-700 hover:bg-stone-500'
                 }`}
+                title={`${s.chapterTitle} ${s.isCustomMedia ? '(Custom Photo in Neon S3)' : ''}`}
               />
             ))}
           </div>

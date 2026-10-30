@@ -1,6 +1,7 @@
--- Neon Database Schema for Titilayo & Oluwaseyi's Wedding Website Wishes
+-- Neon Database Schema for Titilayo & Oluwaseyi's Wedding Website
 -- Run this in your Neon SQL Editor or let the application automatically initialize it!
 
+-- 1. Table for Wedding Guest Prayers & Blessings
 CREATE TABLE IF NOT EXISTS wedding_wishes (
   id SERIAL PRIMARY KEY,
   guest_name VARCHAR(150) NOT NULL,
@@ -8,13 +9,24 @@ CREATE TABLE IF NOT EXISTS wedding_wishes (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Index for speedy ordering by newest wishes
 CREATE INDEX IF NOT EXISTS idx_wedding_wishes_created_at ON wedding_wishes(created_at DESC);
 
--- Optional: Initial blessings
-INSERT INTO wedding_wishes (guest_name, message, created_at)
-VALUES 
-  ('Pastor & Fellowship Family', 'What God has joined together, let no man put asunder. We remember the early days in fellowship cell group—so proud of you both!', NOW() - INTERVAL '1 hour'),
-  ('Sister & Family (Lagos)', 'Remembering the early morning trek phone calls! God''s hand has been upon this journey from day one. Congratulations Seyi and Titi!', NOW() - INTERVAL '3 hours'),
-  ('Abuja Friends', 'The tears of joy when Seyi visited Abuja said it all. You two are meant for each other! #TitiSeyiForever', NOW() - INTERVAL '1 day')
-ON CONFLICT DO NOTHING;
+-- 2. Table for Story Slider Chapters & Media (Linked to Neon Object Storage bucket: 'assets')
+CREATE TABLE IF NOT EXISTS story_slides (
+  slide_id INT PRIMARY KEY,
+  chapter VARCHAR(50) NOT NULL,
+  chapter_title VARCHAR(255) NOT NULL,
+  date_str VARCHAR(100),
+  location VARCHAR(150),
+  media_type VARCHAR(20) DEFAULT 'image', -- 'image' or 'video'
+  media_url TEXT NOT NULL,                -- Neon S3 URL or default image URL
+  fallback_media TEXT,
+  aspect_ratio VARCHAR(30) DEFAULT 'landscape',
+  subtitle TEXT NOT NULL,
+  reaction_emoji VARCHAR(50),
+  tags TEXT[],
+  is_custom_media BOOLEAN DEFAULT FALSE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_story_slides_id ON story_slides(slide_id ASC);
