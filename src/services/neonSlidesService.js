@@ -1,15 +1,11 @@
 import { neon } from '@neondatabase/serverless';
 import { STORY_SLIDES } from '../data/storyScript';
 
-const FALLBACK_DATABASE_URL = 
-  "postgresql://neondb_owner:npg_CevnzV80kEFd@ep-dark-brook-b4othpqw-pooler.c-6.us-east-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require";
-
-const NEON_CONNECTION_STRING = 
-  import.meta.env.DATABASE_URL || 
-  import.meta.env.DATABASE_URL_UNPOOLED || 
-  import.meta.env.VITE_NEON_DATABASE_URL || 
-  import.meta.env.VITE_DATABASE_URL || 
-  FALLBACK_DATABASE_URL;
+const NEON_CONNECTION_STRING =
+  import.meta.env.VITE_DATABASE_URL ||
+  import.meta.env.VITE_NEON_DATABASE_URL ||  
+  import.meta.env.DATABASE_URL ||
+  import.meta.env.DATABASE_URL_UNPOOLED;
 
 function getSqlClient() {
   if (!NEON_CONNECTION_STRING) return null;
