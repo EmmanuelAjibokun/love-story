@@ -131,7 +131,7 @@ export default function App() {
         </section>
 
         {/* The Core Story Slider with Auto-Play & Synchronized Subtitles */}
-        <section id="story-slider" className="px-4 sm:px-6 pb-20">
+        <section id="story-slider" className="px-3 sm:px-6 pb-16 sm:pb-20">
           <StorySlider
             slides={slides}
             currentIndex={currentIndex}

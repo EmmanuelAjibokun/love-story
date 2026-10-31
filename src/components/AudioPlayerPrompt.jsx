@@ -91,9 +91,9 @@ export default function AudioPlayerPrompt({ hasEntered, setHasEntered }) {
 
       {/* Floating Audio Controller for visitor convenience */}
       {hasEntered && (
-        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2">
+        <div className="fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2">
           <div 
-            className="flex items-center gap-2 bg-stone-900/90 backdrop-blur-xl border border-rose-500/20 px-4 py-2.5 rounded-full shadow-xl shadow-black/50 text-stone-200"
+            className="flex items-center gap-1.5 sm:gap-2 bg-stone-900/90 backdrop-blur-xl border border-rose-500/20 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full shadow-xl shadow-black/50 text-stone-200"
             onMouseEnter={() => setShowVolumeSlider(true)}
             onMouseLeave={() => setShowVolumeSlider(false)}
           >
