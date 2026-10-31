@@ -5,12 +5,15 @@ import { neon } from '@neondatabase/serverless';
  * Uses Neon Postgres over HTTP via @neondatabase/serverless with automatic API fallback
  */
 
+const FALLBACK_DATABASE_URL = 
+  "postgresql://neondb_owner:npg_CevnzV80kEFd@ep-dark-brook-b4othpqw-pooler.c-6.us-east-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require";
+
 const NEON_CONNECTION_STRING = 
   import.meta.env.DATABASE_URL || 
   import.meta.env.DATABASE_URL_UNPOOLED || 
   import.meta.env.VITE_NEON_DATABASE_URL || 
   import.meta.env.VITE_DATABASE_URL || 
-  '';
+  FALLBACK_DATABASE_URL;
 
 // Default initial blessings
 export const SEED_WISHES = [

@@ -23,13 +23,15 @@ export default function App() {
   // Load slides from Neon database on mount
   useEffect(() => {
     async function loadNeonSlides() {
+      setIsLoadingSlides(true);
       try {
         const dbSlides = await fetchSlidesFromNeon();
         if (dbSlides && dbSlides.length > 0) {
+          console.log(`[Love Story] Successfully loaded ${dbSlides.length} slides from Neon backend!`);
           setSlides(dbSlides);
         }
       } catch (err) {
-        console.warn("Using default slides:", err);
+        console.warn("[Love Story] Using default slides fallback:", err);
       } finally {
         setIsLoadingSlides(false);
       }

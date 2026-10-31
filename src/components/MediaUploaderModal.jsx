@@ -175,7 +175,7 @@ export default function MediaUploaderModal({
           </div>
 
           {/* Or Paste URL Option */}
-          <div>
+          {/* <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-stone-300 mb-2">
               Or Save Custom URL in Database:
             </label>
@@ -202,7 +202,7 @@ export default function MediaUploaderModal({
                 Save to DB
               </button>
             </form>
-          </div>
+          </div> */}
         </div>
 
         {/* Footer */}

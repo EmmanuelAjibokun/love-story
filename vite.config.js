@@ -275,14 +275,22 @@ function neonApiPlugin(env) {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const databaseUrl = 
+    env.DATABASE_URL || 
+    env.DATABASE_URL_UNPOOLED || 
+    env.VITE_NEON_DATABASE_URL || 
+    env.VITE_DATABASE_URL || 
+    'postgresql://neondb_owner:npg_CevnzV80kEFd@ep-dark-brook-b4othpqw-pooler.c-6.us-east-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require';
 
   return {
     plugins: [react(), neonApiPlugin(env)],
     define: {
-      'import.meta.env.DATABASE_URL': JSON.stringify(env.DATABASE_URL || ''),
-      'import.meta.env.DATABASE_URL_UNPOOLED': JSON.stringify(env.DATABASE_URL_UNPOOLED || ''),
-      'import.meta.env.NEON_BRANCH': JSON.stringify(env.NEON_BRANCH || ''),
-      'import.meta.env.AWS_ENDPOINT_URL_S3': JSON.stringify(env.AWS_ENDPOINT_URL_S3 || ''),
+      'import.meta.env.DATABASE_URL': JSON.stringify(databaseUrl),
+      'import.meta.env.DATABASE_URL_UNPOOLED': JSON.stringify(env.DATABASE_URL_UNPOOLED || databaseUrl),
+      'import.meta.env.VITE_NEON_DATABASE_URL': JSON.stringify(databaseUrl),
+      'import.meta.env.VITE_DATABASE_URL': JSON.stringify(databaseUrl),
+      'import.meta.env.NEON_BRANCH': JSON.stringify(env.NEON_BRANCH || 'production'),
+      'import.meta.env.AWS_ENDPOINT_URL_S3': JSON.stringify(env.AWS_ENDPOINT_URL_S3 || 'https://br-tiny-bar-b4xifyil.storage.c-6.us-east-2.aws.neon.tech'),
       'import.meta.env.AWS_REGION': JSON.stringify(env.AWS_REGION || 'us-east-2'),
     },
   };
