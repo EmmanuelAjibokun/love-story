@@ -21,6 +21,60 @@ import {
   SkipBack
 } from 'lucide-react';
 
+function SlideMediaItem({ slide, isActive, isVideoMuted, videoRef }) {
+  const [videoError, setVideoError] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setVideoError(false);
+    setImgError(false);
+  }, [slide.mediaUrl, slide.fallbackMedia]);
+
+  const showVideo = slide.type === 'video' && !videoError;
+
+  if (showVideo) {
+    return (
+      <div className="relative w-full h-full flex items-center justify-center bg-stone-950">
+        <video
+          ref={isActive ? videoRef : null}
+          src={slide.mediaUrl}
+          poster={slide.fallbackMedia}
+          autoPlay={isActive}
+          loop
+          muted={isVideoMuted}
+          playsInline
+          className="w-full h-full object-cover object-center"
+          onError={() => {
+            console.warn(`Video failed to load for "${slide.chapterTitle}", falling back to image:`, slide.mediaUrl);
+            setVideoError(true);
+          }}
+        />
+      </div>
+    );
+  }
+
+  const imageSrc = videoError
+    ? (slide.fallbackMedia || slide.mediaUrl)
+    : (imgError ? (slide.fallbackMedia || slide.mediaUrl) : slide.mediaUrl);
+
+  return (
+    <div className="relative w-full h-full overflow-hidden bg-stone-950">
+      <img
+        src={imageSrc}
+        alt={slide.chapterTitle || 'Love story slide'}
+        onError={() => {
+          if (!imgError && slide.fallbackMedia && imageSrc !== slide.fallbackMedia) {
+            setImgError(true);
+          }
+        }}
+        className={`w-full h-full object-cover object-center transform transition-transform duration-[8500ms] ease-out ${
+          isActive ? 'scale-105' : 'scale-100'
+        }`}
+      />
+    </div>
+  );
+}
+
 export default function StorySlider({ 
   slides, 
   currentIndex, 
@@ -302,35 +356,12 @@ export default function StorySlider({
                   isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                 }`}
               >
-                {slide.type === 'video' ? (
-                  <div className="relative w-full h-full flex items-center justify-center bg-stone-950">
-                    <video
-                      ref={isActive ? videoRef : null}
-                      src={slide.mediaUrl}
-                      poster={slide.fallbackMedia}
-                      autoPlay={isActive}
-                      loop
-                      muted={isVideoMuted}
-                      playsInline
-                      className="w-full h-full object-cover object-center"
-                    />
-                  </div>
-                ) : (
-                  <div className="relative w-full h-full overflow-hidden bg-stone-950">
-                    <img
-                      src={slide.mediaUrl}
-                      alt={slide.chapterTitle}
-                      onError={(e) => {
-                        if (e.target.src !== slide.fallbackMedia) {
-                          e.target.src = slide.fallbackMedia;
-                        }
-                      }}
-                      className={`w-full h-full object-cover object-center transform transition-transform duration-[8500ms] ease-out ${
-                        isActive ? 'scale-105' : 'scale-100'
-                      }`}
-                    />
-                  </div>
-                )}
+                <SlideMediaItem
+                  slide={slide}
+                  isActive={isActive}
+                  isVideoMuted={isVideoMuted}
+                  videoRef={videoRef}
+                />
 
                 {/* Subtle Cinematic Vignette (Preserves full image visibility while framing) */}
                 <div className="absolute inset-0 bg-gradient-to-t from-stone-950/70 via-transparent to-stone-950/20 pointer-events-none" />

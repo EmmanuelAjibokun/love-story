@@ -169,8 +169,49 @@ function neonApiPlugin(env) {
           return;
         }
 
-        // POST /api/slides/update-media
-        if (req.method === 'POST' && url.includes('/update-media')) {
+        // POST /api/slides/reset
+        if (req.method === 'POST' && url.includes('/reset')) {
+          (async () => {
+            try {
+              await sql`
+                UPDATE story_slides
+                SET 
+                  media_url = fallback_media,
+                  media_type = CASE WHEN fallback_media LIKE '%.mp4%' THEN 'video' ELSE 'image' END,
+                  is_custom_media = FALSE,
+                  updated_at = CURRENT_TIMESTAMP;
+              `;
+              const rows = await sql`
+                SELECT 
+                  slide_id AS id,
+                  chapter,
+                  chapter_title AS "chapterTitle",
+                  date_str AS date,
+                  location,
+                  media_type AS type,
+                  media_url AS "mediaUrl",
+                  fallback_media AS "fallbackMedia",
+                  aspect_ratio AS "aspectRatio",
+                  subtitle,
+                  reaction_emoji AS "reactionEmoji",
+                  tags,
+                  is_custom_media AS "isCustomMedia"
+                FROM story_slides
+                ORDER BY slide_id ASC;
+              `;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(rows));
+            } catch (err) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: err.message }));
+            }
+          })();
+          return;
+        }
+
+        // POST /api/slides or POST /api/slides/update-media
+        if (req.method === 'POST' && (url === '' || url === '/' || url.includes('/update-media'))) {
           const chunks = [];
           req.on('data', chunk => chunks.push(chunk));
           req.on('end', async () => {
@@ -179,7 +220,14 @@ function neonApiPlugin(env) {
               const { slideId, mediaUrl, mediaType } = body;
               if (!slideId || !mediaUrl) {
                 res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
                 return res.end(JSON.stringify({ error: 'slideId and mediaUrl required' }));
+              }
+
+              if (typeof mediaUrl === 'string' && mediaUrl.startsWith('blob:')) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                return res.end(JSON.stringify({ error: 'Transient blob: URLs cannot be stored in the database.' }));
               }
 
               const result = await sql`
@@ -209,6 +257,7 @@ function neonApiPlugin(env) {
               res.end(JSON.stringify(result[0]));
             } catch (err) {
               res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify({ error: err.message }));
             }
           });
@@ -279,19 +328,12 @@ export default defineConfig(({ mode }) => {
     env.DATABASE_URL || 
     env.DATABASE_URL_UNPOOLED || 
     env.VITE_NEON_DATABASE_URL || 
-    env.VITE_DATABASE_URL || 
-    'postgresql://neondb_owner:npg_CevnzV80kEFd@ep-dark-brook-b4othpqw-pooler.c-6.us-east-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require';
+    env.VITE_DATABASE_URL;
 
   return {
     plugins: [react(), neonApiPlugin(env)],
     define: {
-      'import.meta.env.DATABASE_URL': JSON.stringify(databaseUrl),
-      'import.meta.env.DATABASE_URL_UNPOOLED': JSON.stringify(env.DATABASE_URL_UNPOOLED || databaseUrl),
-      'import.meta.env.VITE_NEON_DATABASE_URL': JSON.stringify(databaseUrl),
-      'import.meta.env.VITE_DATABASE_URL': JSON.stringify(databaseUrl),
       'import.meta.env.NEON_BRANCH': JSON.stringify(env.NEON_BRANCH || 'production'),
-      'import.meta.env.AWS_ENDPOINT_URL_S3': JSON.stringify(env.AWS_ENDPOINT_URL_S3 || 'https://br-tiny-bar-b4xifyil.storage.c-6.us-east-2.aws.neon.tech'),
-      'import.meta.env.AWS_REGION': JSON.stringify(env.AWS_REGION || 'us-east-2'),
     },
   };
 });

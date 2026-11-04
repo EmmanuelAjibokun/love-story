@@ -43,10 +43,11 @@ export default function MediaUploaderModal({
       await onUpdateSlideMedia(selectedSlideId, mediaUrl, isVideo ? 'video' : 'image');
       setSuccessMsg(`Uploaded to Neon S3 bucket & saved to database for ${currentSlide.chapterTitle}!`);
     } catch (err) {
-      console.warn("Neon storage upload warning, falling back to local preview URL:", err);
+      console.warn("Neon storage upload warning, using local preview only:", err);
+      // Only show local preview in the UI — do NOT persist blob: URLs to the database
+      // (blob: URLs are scoped to the current browser session and origin)
       const localUrl = URL.createObjectURL(file);
-      onUpdateSlideMedia(selectedSlideId, localUrl, isVideo ? 'video' : 'image');
-      setSuccessMsg(`Loaded local preview for ${currentSlide.chapterTitle}!`);
+      setSuccessMsg(`⚠️ Upload failed — showing local preview only (not saved to database)`);
     } finally {
       setIsUploading(false);
       setTimeout(() => setSuccessMsg(''), 4500);
@@ -126,9 +127,26 @@ export default function MediaUploaderModal({
           <div className="border border-stone-800 rounded-2xl p-4 bg-stone-950 flex flex-col sm:flex-row gap-4 items-center">
             <div className="w-full sm:w-44 h-28 rounded-xl overflow-hidden bg-black shrink-0 relative">
               {currentSlide.type === 'video' ? (
-                <video src={currentSlide.mediaUrl} className="w-full h-full object-cover" muted autoPlay loop />
+                <video 
+                  src={currentSlide.mediaUrl} 
+                  poster={currentSlide.fallbackMedia}
+                  className="w-full h-full object-cover" 
+                  muted 
+                  autoPlay 
+                  loop 
+                  playsInline
+                />
               ) : (
-                <img src={currentSlide.mediaUrl} alt="" className="w-full h-full object-cover" />
+                <img 
+                  src={currentSlide.mediaUrl} 
+                  alt="" 
+                  onError={(e) => {
+                    if (currentSlide.fallbackMedia && e.target.src !== currentSlide.fallbackMedia) {
+                      e.target.src = currentSlide.fallbackMedia;
+                    }
+                  }}
+                  className="w-full h-full object-cover" 
+                />
               )}
               <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] bg-black/70 text-stone-300 uppercase">
                 {currentSlide.type}

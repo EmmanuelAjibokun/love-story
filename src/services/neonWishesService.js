@@ -1,21 +1,10 @@
-import { neon } from '@neondatabase/serverless';
-
 /**
- * Neon Serverless Database Service for Wedding Wishes
- * Uses Neon Postgres over HTTP via @neondatabase/serverless with automatic API fallback
+ * Wedding Wishes Service
+ * All database operations go through the /api/wishes server endpoint.
+ * No direct SQL or database credentials on the client side.
  */
 
-const FALLBACK_DATABASE_URL = 
-  "postgresql://neondb_owner:npg_CevnzV80kEFd@ep-dark-brook-b4othpqw-pooler.c-6.us-east-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require";
-
-const NEON_CONNECTION_STRING = 
-  import.meta.env.DATABASE_URL || 
-  import.meta.env.DATABASE_URL_UNPOOLED || 
-  import.meta.env.VITE_NEON_DATABASE_URL || 
-  import.meta.env.VITE_DATABASE_URL || 
-  FALLBACK_DATABASE_URL;
-
-// Default initial blessings
+// Default initial blessings (shown when API is unavailable)
 export const SEED_WISHES = [
   {
     id: 'seed-1',
@@ -59,33 +48,7 @@ export function formatWishDate(dateString) {
   }
 }
 
-function getSqlClient() {
-  if (!NEON_CONNECTION_STRING) return null;
-  return neon(NEON_CONNECTION_STRING);
-}
-
-export async function initWishesTable() {
-  const sql = getSqlClient();
-  if (!sql) return false;
-
-  try {
-    await sql`
-      CREATE TABLE IF NOT EXISTS wedding_wishes (
-        id SERIAL PRIMARY KEY,
-        guest_name VARCHAR(150) NOT NULL,
-        message TEXT NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-    return true;
-  } catch (error) {
-    console.warn("Table init warning:", error);
-    return false;
-  }
-}
-
 export async function fetchWishesFromNeon() {
-  // Try /api/wishes endpoint first
   try {
     const apiRes = await fetch('/api/wishes');
     if (apiRes.ok) {
@@ -100,85 +63,25 @@ export async function fetchWishesFromNeon() {
         }));
       }
     }
-  } catch (e) {
-    // API not responding or client-only mode, fall back to direct SQL client
-  }
-
-  // Fallback to direct Neon Serverless client
-  const sql = getSqlClient();
-  if (!sql) {
-    return SEED_WISHES;
-  }
-
-  try {
-    await initWishesTable();
-    const rows = await sql`
-      SELECT 
-        id, 
-        guest_name AS name, 
-        message AS text, 
-        created_at 
-      FROM wedding_wishes 
-      ORDER BY created_at DESC 
-      LIMIT 100;
-    `;
-
-    if (!rows || rows.length === 0) {
-      return SEED_WISHES;
-    }
-
-    return rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      text: row.text,
-      date: formatWishDate(row.created_at),
-      created_at: row.created_at
-    }));
   } catch (err) {
-    console.warn("Neon direct query fallback error:", err);
-    return SEED_WISHES;
+    console.warn("[Wishes API] Fetch error:", err);
   }
+
+  return SEED_WISHES;
 }
 
 export async function sendWishToNeon(guestName, message) {
   const trimmedName = guestName.trim();
   const trimmedMessage = message.trim();
 
-  // Try API endpoint first
-  try {
-    const apiRes = await fetch('/api/wishes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: trimmedName, message: trimmedMessage }),
-    });
+  const apiRes = await fetch('/api/wishes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: trimmedName, message: trimmedMessage }),
+  });
 
-    if (apiRes.ok) {
-      const row = await apiRes.json();
-      return {
-        id: row.id,
-        name: row.name,
-        text: row.text,
-        date: 'Just now',
-        created_at: row.created_at
-      };
-    }
-  } catch (e) {
-    // API not available, proceed to direct client
-  }
-
-  const sql = getSqlClient();
-  if (!sql) {
-    throw new Error("Neon database connection string not available");
-  }
-
-  const result = await sql`
-    INSERT INTO wedding_wishes (guest_name, message)
-    VALUES (${trimmedName}, ${trimmedMessage})
-    RETURNING id, guest_name AS name, message AS text, created_at;
-  `;
-
-  if (result && result.length > 0) {
-    const row = result[0];
+  if (apiRes.ok) {
+    const row = await apiRes.json();
     return {
       id: row.id,
       name: row.name,
@@ -188,9 +91,11 @@ export async function sendWishToNeon(guestName, message) {
     };
   }
 
-  throw new Error("No record returned from Neon insert");
+  const errData = await apiRes.json().catch(() => ({}));
+  throw new Error(errData.error || "Failed to send wish");
 }
 
 export function isNeonConfigured() {
-  return Boolean(NEON_CONNECTION_STRING);
+  // The API handles DB configuration; the client just needs the API to be reachable
+  return true;
 }
